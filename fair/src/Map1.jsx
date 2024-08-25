@@ -12,86 +12,156 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const haversineDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Radius of Earth in kilometers
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon1 - lon2) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in kilometers
-};
-
-const ResultPage = () => {
+const Map1 = () => {
   const location = useLocation();
-  const { from, to, timeOfDay } = location.state || {};
+  const { from } = location.state || {};
 
-  const [locations, setLocations] = useState([]);
-  const [distance, setDistance] = useState(null);
+  const [locationData, setLocationData] = useState(null);
+  const [innovations, setInnovations] = useState([]);
+  const [newInnovation, setNewInnovation] = useState({ title: '', description: '' });
 
   useEffect(() => {
-    const fetchCoordinates = async (city, index) => {
+    const fetchLocationData = async () => {
       try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${city}&format=json&limit=1`);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${from}&format=json&limit=1`);
         const data = await response.json();
         if (data && data.length > 0) {
-          setLocations((prevLocations) => [
-            ...prevLocations,
-            { name: city, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-          ]);
+          setLocationData({
+            name: from,
+            lat: parseFloat(data[0].lat),
+            lng: parseFloat(data[0].lon)
+          });
         }
       } catch (error) {
-        console.error("Error fetching coordinates:", error);
+        console.error("Error fetching location data:", error);
       }
     };
 
-    if (from) fetchCoordinates(from, 0);
-    if (to) fetchCoordinates(to, 1);
-  }, [from, to]);
+    const fetchInnovations = () => {
+      // Load innovations from local storage
+      const storedInnovations = JSON.parse(localStorage.getItem('innovations')) || [];
+      setInnovations(storedInnovations);
+    };
 
-  useEffect(() => {
-    if (locations.length === 2) {
-      const dist = haversineDistance(locations[0].lat, locations[0].lng, locations[1].lat, locations[1].lng);
-      setDistance(dist.toFixed(2));
+    if (from) {
+      fetchLocationData();
+      fetchInnovations();
     }
-  }, [locations]);
+  }, [from]);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewInnovation((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddInnovation = (e) => {
+    e.preventDefault();
+    const newInnovations = [
+      ...innovations,
+      { ...newInnovation, id: Date.now(), votes: 0, location: from }
+    ];
+    setInnovations(newInnovations);
+
+    // Save innovations to local storage
+    localStorage.setItem('innovations', JSON.stringify(newInnovations));
+    setNewInnovation({ title: '', description: '' }); // Clear form
+  };
+
+  const handleUpvote = (id) => {
+    const updatedInnovations = innovations.map((innovation) =>
+      innovation.id === id
+        ? { ...innovation, votes: innovation.votes + 1 }
+        : innovation
+    );
+    setInnovations(updatedInnovations);
+
+    // Update local storage
+    localStorage.setItem('innovations', JSON.stringify(updatedInnovations));
+  };
+
+  // Filter and sort innovations based on location and votes
+  const filteredAndSortedInnovations = [...innovations]
+    .filter((innovation) => innovation.location === from)
+    .sort((a, b) => b.votes - a.votes);
 
   return (
-    <div className="flex items-center justify-center h-screen w-screen bg-gray-100">
-      <div className="p-6 bg-white rounded shadow-md">
-        <h2 className="text-lg font-bold">Result</h2>
-        <p>From: {from}</p>
-        <p>To: {to}</p>
-        <p>Time of Day: {timeOfDay}</p>
-        {distance && (
-          <p className="mt-4">
-            Distance between {from} and {to}: <strong>{distance} km</strong>
-          </p>
+    <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100">
+      <div className="p-6 bg-white rounded shadow-md mb-4">
+        {locationData && (
+          <>
+            <h2 className="text-lg font-bold">Location: {locationData.name}</h2>
+            <MapContainer
+              center={[locationData.lat, locationData.lng]}
+              zoom={10}
+              scrollWheelZoom={true}
+              className="h-96 w-full mt-4"
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+              <Marker position={[locationData.lat, locationData.lng]}>
+                <Tooltip>{locationData.name}</Tooltip>
+              </Marker>
+            </MapContainer>
+          </>
         )}
 
-        {locations.length === 2 && (
-          <MapContainer
-            center={[locations[0].lat, locations[0].lng]}
-            zoom={5}
-            scrollWheelZoom={true}
-            className="h-96 w-full mt-4"
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        <div className="mt-6 w-full">
+          <h3 className="text-lg font-semibold">Our Ideas for {from}</h3>
+          {filteredAndSortedInnovations.length === 0 ? (
+            <p>No innovations found for this location.</p>
+          ) : (
+            <ul className="list-disc pl-5 mt-4">
+              {filteredAndSortedInnovations.map((innovation) => (
+                <li key={innovation.id} className="mb-2 flex items-center justify-between">
+                  <div>
+                    <strong>{innovation.title}</strong>: {innovation.description} (Votes: {innovation.votes})
+                  </div>
+                  <button
+                    onClick={() => handleUpvote(innovation.id)}
+                    className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-700"
+                  >
+                    Upvote
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-6 w-full">
+          <h3 className="text-lg font-semibold">Add New Innovation</h3>
+          <form onSubmit={handleAddInnovation} className="flex flex-col space-y-4">
+            <input
+              type="text"
+              name="title"
+              value={newInnovation.title}
+              onChange={handleInputChange}
+              placeholder="Innovation Title"
+              className="p-2 border border-gray-300 rounded"
+              required
             />
-            {locations.map((location, index) => (
-              <Marker key={index} position={[location.lat, location.lng]}>
-                <Tooltip>{location.name}</Tooltip>
-              </Marker>
-            ))}
-          </MapContainer>
-        )}
+            <textarea
+              name="description"
+              value={newInnovation.description}
+              onChange={handleInputChange}
+              placeholder="Innovation Description"
+              className="p-2 border border-gray-300 rounded"
+              rows="4"
+              required
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700"
+            >
+              Add Innovation
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
 
-export default ResultPage;
+export default Map1;
