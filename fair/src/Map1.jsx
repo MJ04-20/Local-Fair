@@ -85,8 +85,11 @@ const Map1 = () => {
     .sort((a, b) => b.votes - a.votes);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100">
-      <div className="p-6 bg-white rounded shadow-md mb-4">
+    <div 
+      className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100 bg-cover bg-center"
+      style={{ backgroundImage: 'url(B2.png)' }}
+    >
+      <div className="p-6 bg-slate-200 rounded shadow-md mb-4 w-1/3 h-4/5">
         {locationData && (
           <>
             <h2 className="text-lg font-bold">Location: {locationData.name}</h2>
@@ -139,7 +142,7 @@ const Map1 = () => {
               value={newInnovation.title}
               onChange={handleInputChange}
               placeholder="Innovation Title"
-              className="p-2 border border-gray-300 rounded"
+              className=" relative p-2 border border-gray-300 rounded"
               required
             />
             <textarea
@@ -147,7 +150,7 @@ const Map1 = () => {
               value={newInnovation.description}
               onChange={handleInputChange}
               placeholder="Innovation Description"
-              className="p-2 border border-gray-300 rounded"
+              className="relative p-2 border border-gray-300 rounded"
               rows="4"
               required
             />
