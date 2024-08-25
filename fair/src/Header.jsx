@@ -32,6 +32,7 @@ function Header() {
     <div className="w-full bg-white fixed top-0 left-0 z-50">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
         <div className="inline-flex items-center space-x-2">
+          <img src='B3.png' alt='website logo' className='h-10 w-auto'/>
           <span className="font-extrabold">IdeaHack</span>
         </div>
         <div className="hidden lg:flex">
