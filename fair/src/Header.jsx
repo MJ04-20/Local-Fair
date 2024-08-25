@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 const menuItems = [
   {
     name: 'Home',
-    href: '/home',
+    href: '/',
   },
   {
     name: 'About',
