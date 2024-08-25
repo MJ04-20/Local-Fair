@@ -132,11 +132,17 @@ const Map1 = () => {
     .sort((a, b) => b.votes - a.votes);
 
   return (
-    <div 
-      className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100 bg-cover bg-center"
-      style={{ backgroundImage: 'url(B2.png)' }}
-    >
-      <div className="p-6 bg-slate-200 rounded shadow-md mb-4 w-1/3 h-4/5">
+    <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100"
+    style={{backgroundImage:'url(B2.png)'}}>
+      <div className="p-6 bg-white rounded shadow-md mb-4">
+        {!user ? (
+          <button onClick={handleGoogleSignIn} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">
+            Sign In with Google
+          </button>
+        ) : (
+          <p>Welcome, {user.displayName}</p>
+        )}
+
         {locationData && (
           <>
             <h2 className="text-lg font-bold">Location: {locationData.name}</h2>
@@ -189,7 +195,7 @@ const Map1 = () => {
               value={newInnovation.title}
               onChange={handleInputChange}
               placeholder="Innovation Title"
-              className=" relative p-2 border text-rose-100 border-gray-300 rounded"
+              className="p-2 border border-gray-300 text-rose-100 rounded"
               required
             />
             <textarea
@@ -197,7 +203,7 @@ const Map1 = () => {
               value={newInnovation.description}
               onChange={handleInputChange}
               placeholder="Innovation Description"
-              className="relative p-2 border text-rose-100 border-gray-300 rounded"
+              className="p-2 border border-gray-300 text-rose-100 rounded"
               rows="4"
               required
             />
