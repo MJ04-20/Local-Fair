@@ -13,6 +13,5 @@
       }
     ],
     "predeploy" : ["npm run build"]
-
   }
 }

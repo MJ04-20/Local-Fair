@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { auth, provider, db } from './firebase';
+import { signInWithPopup } from 'firebase/auth';
+import { collection, addDoc, onSnapshot, query, updateDoc, doc, getDoc } from 'firebase/firestore';
 
 // Fix for default icon not displaying
 delete L.Icon.Default.prototype._getIconUrl;
@@ -19,6 +22,7 @@ const Map1 = () => {
   const [locationData, setLocationData] = useState(null);
   const [innovations, setInnovations] = useState([]);
   const [newInnovation, setNewInnovation] = useState({ title: '', description: '' });
+  const [user, setUser] = useState(null); // Track logged-in user
 
   useEffect(() => {
     const fetchLocationData = async () => {
@@ -38,45 +42,88 @@ const Map1 = () => {
     };
 
     const fetchInnovations = () => {
-      // Load innovations from local storage
-      const storedInnovations = JSON.parse(localStorage.getItem('innovations')) || [];
-      setInnovations(storedInnovations);
+      const q = query(collection(db, 'innovations'));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const innovations = [];
+        querySnapshot.forEach((doc) => {
+          innovations.push({ id: doc.id, ...doc.data() });
+        });
+        setInnovations(innovations);
+      });
+      return unsubscribe;
     };
 
     if (from) {
       fetchLocationData();
-      fetchInnovations();
+      const unsubscribe = fetchInnovations();
+      return () => unsubscribe(); // Cleanup listener on component unmount
     }
   }, [from]);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      setUser(result.user); // Set the user state after successful sign-in
+      console.log('User signed in with Google');
+    } catch (error) {
+      console.error('Error signing in with Google: ', error);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewInnovation((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAddInnovation = (e) => {
+  const handleAddInnovation = async (e) => {
     e.preventDefault();
-    const newInnovations = [
-      ...innovations,
-      { ...newInnovation, id: Date.now(), votes: 0, location: from }
-    ];
-    setInnovations(newInnovations);
-
-    // Save innovations to local storage
-    localStorage.setItem('innovations', JSON.stringify(newInnovations));
-    setNewInnovation({ title: '', description: '' }); // Clear form
+    if (!user) {
+      alert('You must be logged in with Google to add an innovation');
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'innovations'), {
+        ...newInnovation,
+        location: from,
+        votes: 0,
+        votedBy: [],
+        userId: user.uid,
+        userName: user.displayName,
+        timestamp: new Date().toISOString(), // Add a timestamp for the innovation
+      });
+      setNewInnovation({ title: '', description: '' }); // Clear form
+      console.log('Innovation added to Firestore');
+    } catch (error) {
+      console.error('Error adding innovation: ', error);
+    }
   };
 
-  const handleUpvote = (id) => {
-    const updatedInnovations = innovations.map((innovation) =>
-      innovation.id === id
-        ? { ...innovation, votes: innovation.votes + 1 }
-        : innovation
-    );
-    setInnovations(updatedInnovations);
+  const handleUpvote = async (id) => {
+    if (!user) {
+      alert('You must be logged in with Google to vote');
+      return;
+    }
 
-    // Update local storage
-    localStorage.setItem('innovations', JSON.stringify(updatedInnovations));
+    const docRef = doc(db, 'innovations', id);
+    const docSnapshot = await getDoc(docRef); // Fetch the document snapshot
+
+    if (docSnapshot.exists()) {
+      const docData = docSnapshot.data();
+      if (docData.votedBy.includes(user.uid)) {
+        alert('You have already voted');
+        return;
+      }
+
+      try {
+        await updateDoc(docRef, {
+          votes: docData.votes + 1,
+          votedBy: [...docData.votedBy, user.uid],
+        });
+        console.log('Vote added');
+      } catch (error) {
+        console.error('Error adding vote: ', error);
+      }
+    }
   };
 
   // Filter and sort innovations based on location and votes
@@ -87,6 +134,14 @@ const Map1 = () => {
   return (
     <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100">
       <div className="p-6 bg-white rounded shadow-md mb-4">
+        {!user ? (
+          <button onClick={handleGoogleSignIn} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700">
+            Sign In with Google
+          </button>
+        ) : (
+          <p>Welcome, {user.displayName}</p>
+        )}
+
         {locationData && (
           <>
             <h2 className="text-lg font-bold">Location: {locationData.name}</h2>
