@@ -142,7 +142,7 @@ const Map1 = () => {
               value={newInnovation.title}
               onChange={handleInputChange}
               placeholder="Innovation Title"
-              className=" relative p-2 border border-gray-300 rounded"
+              className=" relative p-2 border text-rose-100 border-gray-300 rounded"
               required
             />
             <textarea
@@ -150,7 +150,7 @@ const Map1 = () => {
               value={newInnovation.description}
               onChange={handleInputChange}
               placeholder="Innovation Description"
-              className="relative p-2 border border-gray-300 rounded"
+              className="relative p-2 border text-rose-100 border-gray-300 rounded"
               rows="4"
               required
             />
